@@ -6,11 +6,14 @@ import { Test, TestingModule } from '@nestjs/testing';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { Journal } from './journal.entity';
+import { Token } from './token.entity';
+import { TokensService } from './tokens.service';
 import { User } from './user.entity';
 import { UserDTO } from './user.dto';
 import { UsersService } from './users.service';
 
-class UserRepositoryMock {
+class RepositoryMock {
   create(): void {}
   async save(): Promise<void> {}
 }
@@ -18,6 +21,7 @@ class UserRepositoryMock {
 describe('AppController', () => {
   let appController: AppController;
   let usersRepository: Repository<User>;
+  let tokensRepository: Repository<Token>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -25,12 +29,16 @@ describe('AppController', () => {
       providers: [
         AppService,
         UsersService,
-        { provide: getRepositoryToken(User), useClass: UserRepositoryMock },
+        TokensService,
+        { provide: getRepositoryToken(User), useClass: RepositoryMock },
+        { provide: getRepositoryToken(Token), useClass: RepositoryMock },
+        { provide: getRepositoryToken(Journal), useClass: RepositoryMock },
       ],
     }).compile();
 
     appController = module.get<AppController>(AppController);
     usersRepository = module.get<Repository<User>>(getRepositoryToken(User));
+    tokensRepository = module.get<Repository<Token>>(getRepositoryToken(Token));
   });
 
   describe('root', () => {
@@ -53,18 +61,25 @@ describe('AppController', () => {
       return expect(registerUser).rejects.toBeInstanceOf(BadRequestException);
     });
 
-    it('should create a user', async () => {
+    it('should create a user', () => {
       const user: User = {
         id: null,
         firstName: 'Flavien',
         lastName: 'Schriever',
         isActive: true,
       };
+      jest.spyOn(usersRepository, 'save').mockResolvedValueOnce(user);
 
-      jest.spyOn(usersRepository, 'create').mockReturnValue(user);
-      const saveUser = jest.spyOn(usersRepository, 'save');
-      await appController.registerUser(user);
-      expect(saveUser).toBeCalledWith(user);
+      const token: Partial<Token> = {
+        hash: 'helloworld',
+      };
+      jest
+        .spyOn(tokensRepository, 'save')
+        .mockResolvedValueOnce(token as Token);
+
+      return expect(appController.registerUser(user)).resolves.toStrictEqual({
+        token: token.hash,
+      });
     });
   });
 });

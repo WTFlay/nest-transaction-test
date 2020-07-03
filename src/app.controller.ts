@@ -1,13 +1,13 @@
 import {
   Controller,
   Get,
-  HttpCode,
   Post,
   Body,
   BadRequestException,
 } from '@nestjs/common';
 
 import { AppService } from './app.service';
+import { TokenDTO } from './token.dto';
 import { UserDTO } from './user.dto';
 import { UsersService } from './users.service';
 
@@ -24,10 +24,13 @@ export class AppController {
   }
 
   @Post('/register')
-  @HttpCode(204)
-  async registerUser(@Body() userDTO: UserDTO) {
+  async registerUser(@Body() userDTO: UserDTO): Promise<TokenDTO> {
     try {
-      await this.usersService.register(userDTO.firstName, userDTO.lastName);
+      const token = await this.usersService.register(
+        userDTO.firstName,
+        userDTO.lastName,
+      );
+      return { token: token.hash };
     } catch (e) {
       throw new BadRequestException();
     }
