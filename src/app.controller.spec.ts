@@ -1,44 +1,27 @@
 import { BadRequestException } from '@nestjs/common';
-import { Repository } from 'typeorm';
-import { getRepositoryToken } from '@nestjs/typeorm';
 
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { Journal } from './journal.entity';
-import { Token } from './token.entity';
 import { TokensService } from './tokens.service';
-import { User } from './user.entity';
+import { TransactionModuleMock } from './transaction/transaction-mock.module';
 import { UserDTO } from './user.dto';
 import { UsersService } from './users.service';
 
-class RepositoryMock {
-  create(): void {}
-  async save(): Promise<void> {}
-}
-
 describe('AppController', () => {
   let appController: AppController;
-  let usersRepository: Repository<User>;
-  let tokensRepository: Repository<Token>;
+  let tokensService: TokensService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
+      imports: [TransactionModuleMock],
       controllers: [AppController],
-      providers: [
-        AppService,
-        UsersService,
-        TokensService,
-        { provide: getRepositoryToken(User), useClass: RepositoryMock },
-        { provide: getRepositoryToken(Token), useClass: RepositoryMock },
-        { provide: getRepositoryToken(Journal), useClass: RepositoryMock },
-      ],
+      providers: [AppService, UsersService, TokensService],
     }).compile();
 
     appController = module.get<AppController>(AppController);
-    usersRepository = module.get<Repository<User>>(getRepositoryToken(User));
-    tokensRepository = module.get<Repository<Token>>(getRepositoryToken(Token));
+    tokensService = module.get<TokensService>(TokensService);
   });
 
   describe('root', () => {
@@ -61,25 +44,16 @@ describe('AppController', () => {
       return expect(registerUser).rejects.toBeInstanceOf(BadRequestException);
     });
 
-    it('should create a user', () => {
-      const user: User = {
-        id: null,
+    it('should create a user', async () => {
+      const userDTO: UserDTO = {
         firstName: 'Flavien',
         lastName: 'Schriever',
-        isActive: true,
       };
-      jest.spyOn(usersRepository, 'save').mockResolvedValueOnce(user);
 
-      const token: Partial<Token> = {
-        hash: 'helloworld',
-      };
-      jest
-        .spyOn(tokensRepository, 'save')
-        .mockResolvedValueOnce(token as Token);
-
-      return expect(appController.registerUser(user)).resolves.toStrictEqual({
-        token: token.hash,
-      });
+      const { token } = await appController.registerUser(userDTO);
+      expect(token).toBe(
+        tokensService.generateDigest([userDTO.firstName, userDTO.lastName]),
+      );
     });
   });
 });

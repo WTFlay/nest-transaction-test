@@ -6,6 +6,7 @@ import { AppService } from './app.service';
 import { Journal } from './journal.entity';
 import { Token } from './token.entity';
 import { TokensService } from './tokens.service';
+import { TransactionModule } from './transaction/transaction.module';
 import { User } from './user.entity';
 import { UsersService } from './users.service';
 
@@ -14,7 +15,7 @@ import { UsersService } from './users.service';
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: 'localhost',
-      port: 32770,
+      port: 32768,
       username: 'root',
       password: 'root',
       database: 'database',
@@ -22,6 +23,7 @@ import { UsersService } from './users.service';
       synchronize: true,
     }),
     TypeOrmModule.forFeature([User, Token, Journal]),
+    TransactionModule,
   ],
   controllers: [AppController],
   providers: [AppService, UsersService, TokensService],
